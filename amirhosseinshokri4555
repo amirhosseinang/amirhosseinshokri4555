@@ -1,0 +1,88 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using Newtonsoft.Json;
+
+namespace CryptoPriceTracker
+{
+    
+    public class CurrencyStats
+    {
+        [JsonProperty("symbol")]
+        public string Symbol { get; set; }
+
+        [JsonProperty("lastPrice")]
+        public decimal LastPrice { get; set; }
+
+        [JsonProperty("change24h")]
+        public decimal Change24h { get; set; }
+
+    }
+
+    
+    public class CryptoPriceTracker
+    {
+        private readonly HttpClient _httpClient;
+        private readonly List<CurrencyStats> _currencyStatsList;
+
+        public CryptoPriceTracker()
+        {
+            _httpClient = new HttpClient();
+            _currencyStatsList = new List<CurrencyStats>();
+        }
+
+        public async Task UpdateCurrencyStatsAsync()
+        {
+            
+            var response = await _httpClient.GetAsync("https://api.wallex.ir/v1/currencies/stats");
+            response.EnsureSuccessStatusCode();
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var currencyStats = JsonConvert.DeserializeObject<List<CurrencyStats>>(responseBody);
+
+            
+            _currencyStatsList.AddRange(currencyStats);
+        }
+
+        
+    }
+
+    
+    public class DataStorage
+    {
+        public void SaveCurrencyStatsAsJson(List<CurrencyStats> currencyStatsList)
+        {
+            var json = JsonConvert.SerializeObject(currencyStatsList, Formatting.Indented);
+            File.WriteAllText("currency-stats.json", json);
+        }
+
+        
+    }
+
+  
+    public class PredictionValidator
+    {
+        public decimal PredictNextPrice(List<CurrencyStats> currencyStatsList)
+        {
+           
+            var lastCurrencyStat = currencyStatsList.Last();
+            var previousCurrencyStat = currencyStatsList.ElementAtOrDefault(currencyStatsList.Count - 2);
+
+            var priceDifference = lastCurrencyStat.LastPrice - previousCurrencyStat?.LastPrice ?? 0;
+
+            var predictedPrice = lastCurrencyStat.LastPrice + priceDifference;
+
+            return predictedPrice;
+        }
+
+        public decimal GetPriceDifferencePercentage(decimal predictedPrice, decimal actualPrice)
+        {
+            return ((actualPrice - predictedPrice) / actualPrice) * 100;
+        }
+
+    }
+
+    public class ForecastingMethodModifier
+    {
+    }
+}
